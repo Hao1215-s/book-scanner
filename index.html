@@ -1,0 +1,1824 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>移动端颜色条码识别演示系统</title>
+  <style>
+    :root {
+      --bg-deep: #070b14;
+      --bg-panel: rgba(15, 23, 42, 0.78);
+      --bg-card: rgba(30, 41, 59, 0.72);
+      --border-glass: rgba(56, 189, 248, 0.22);
+      --neon-cyan: #00f2fe;
+      --neon-blue: #38bdf8;
+      --neon-red: #ff2e63;
+      --neon-green: #10b981;
+      --neon-amber: #f59e0b;
+      --text-main: #f1f5f9;
+      --text-sub: #94a3b8;
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: radial-gradient(circle at 50% 0%, #0f172a 0%, #050811 100%);
+      color: var(--text-main);
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      justify-content: center;
+      overflow-x: hidden;
+    }
+
+    /* 手机容器外壳适配 */
+    .app-shell {
+      width: 100%;
+      max-width: 480px;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.45) 0%, rgba(7, 11, 20, 0.95) 100%);
+      box-shadow: 0 0 50px rgba(0, 242, 254, 0.08);
+      border-left: 1px solid rgba(255, 255, 255, 0.05);
+      border-right: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* 顶部标题栏 */
+    .app-header {
+      padding: 14px 18px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(10, 15, 28, 0.82);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border-glass);
+      z-index: 20;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, rgba(0, 242, 254, 0.2), rgba(56, 189, 248, 0.05));
+      border: 1px solid rgba(0, 242, 254, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 12px rgba(0, 242, 254, 0.25);
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      background: linear-gradient(90deg, #ffffff, #7dd3fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--text-sub);
+      margin-top: 1px;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      color: #cbd5e1;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #64748b;
+      transition: all 0.3s ease;
+    }
+
+    .status-dot.active {
+      background: var(--neon-cyan);
+      box-shadow: 0 0 10px var(--neon-cyan);
+      animation: pulseDot 1.6s infinite;
+    }
+
+    .status-dot.success {
+      background: var(--neon-green);
+      box-shadow: 0 0 10px var(--neon-green);
+    }
+
+    .status-dot.warn {
+      background: var(--neon-amber);
+      box-shadow: 0 0 10px var(--neon-amber);
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.65; }
+    }
+
+    /* 顶部导航切换 Tab */
+    .tab-nav {
+      display: flex;
+      margin: 10px 16px 6px;
+      padding: 4px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.18);
+      border-radius: 12px;
+      z-index: 15;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 9px 0;
+      border: none;
+      background: transparent;
+      color: var(--text-sub);
+      font-size: 13.5px;
+      font-weight: 600;
+      border-radius: 9px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.25s ease;
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, rgba(0, 242, 254, 0.22), rgba(56, 189, 248, 0.12));
+      color: #fff;
+      border: 1px solid rgba(0, 242, 254, 0.4);
+      box-shadow: 0 2px 12px rgba(0, 242, 254, 0.15);
+    }
+
+    /* 页面主内容区 */
+    .page-view {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      padding: 8px 16px 20px;
+      overflow-y: auto;
+    }
+
+    .page-view.active {
+      display: flex;
+    }
+
+    /* 扫码取景器容器 */
+    .viewfinder-card {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 3 / 4;
+      max-height: 54vh;
+      background: #030712;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.85), 0 8px 28px rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #cameraVideo,
+    #captureCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    #captureCanvas {
+      z-index: 4;
+      display: none;
+    }
+
+    /* 科技感取景覆盖层 */
+    .scanner-hud {
+      position: absolute;
+      inset: 0;
+      z-index: 6;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* 外部暗角遮罩 */
+    .hud-frame {
+      position: relative;
+      width: 72%;
+      height: 82%;
+      border: 1px dashed rgba(56, 189, 248, 0.28);
+      border-radius: 14px;
+      box-shadow: 0 0 0 999px rgba(4, 8, 18, 0.42);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* 四个角科技装饰 */
+    .corner {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border-color: var(--neon-cyan);
+      border-style: solid;
+      filter: drop-shadow(0 0 6px var(--neon-cyan));
+    }
+    .corner.tl { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-top-left-radius: 10px; }
+    .corner.tr { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-top-right-radius: 10px; }
+    .corner.bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-bottom-left-radius: 10px; }
+    .corner.br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-bottom-right-radius: 10px; }
+
+    /* 中央纵向颜色条码引导槽 */
+    .barcode-guide-pillar {
+      width: 30%;
+      height: 84%;
+      border: 1px solid rgba(0, 242, 254, 0.35);
+      background: rgba(0, 242, 254, 0.03);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-evenly;
+      align-items: center;
+      position: relative;
+    }
+
+    .guide-tick {
+      width: 45%;
+      height: 1px;
+      background: rgba(56, 189, 248, 0.25);
+    }
+
+    .hud-tip {
+      position: absolute;
+      bottom: 10px;
+      font-size: 11px;
+      color: #bae6fd;
+      background: rgba(7, 11, 20, 0.78);
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      letter-spacing: 0.4px;
+    }
+
+    /* 动态激光扫描线 */
+    .scan-laser {
+      position: absolute;
+      left: 6%;
+      right: 6%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent 0%, var(--neon-cyan) 50%, transparent 100%);
+      box-shadow: 0 0 12px 2px var(--neon-cyan);
+      animation: laserMove 2.6s ease-in-out infinite;
+      opacity: 0.85;
+    }
+
+    .scan-laser.paused {
+      display: none;
+    }
+
+    @keyframes laserMove {
+      0% { top: 8%; opacity: 0.3; }
+      50% { top: 90%; opacity: 1; }
+      100% { top: 8%; opacity: 0.3; }
+    }
+
+    /* 待机占位提示 */
+    .camera-placeholder {
+      z-index: 3;
+      text-align: center;
+      padding: 20px;
+      color: var(--text-sub);
+    }
+
+    .camera-placeholder svg {
+      width: 46px;
+      height: 46px;
+      stroke: #38bdf8;
+      opacity: 0.75;
+      margin-bottom: 8px;
+    }
+
+    /* 识别中/自动重扫浮动提示条 */
+    .rescan-banner {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 12;
+      background: rgba(245, 158, 11, 0.92);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 7px 16px;
+      border-radius: 999px;
+      box-shadow: 0 4px 18px rgba(245, 158, 11, 0.45);
+      display: none;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .rescan-banner.show {
+      display: inline-flex;
+    }
+
+    /* 演示辅助工具栏 */
+    .demo-bar {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      padding: 7px 10px;
+      border-radius: var(--radius-md);
+    }
+
+    .demo-label {
+      font-size: 11.5px;
+      color: var(--text-sub);
+      white-space: nowrap;
+    }
+
+    .demo-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .chip-btn {
+      padding: 5px 9px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: #e0f2fe;
+      background: rgba(56, 189, 248, 0.14);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .chip-btn:active {
+      transform: scale(0.96);
+      background: rgba(56, 189, 248, 0.28);
+    }
+
+    .chip-btn.warn {
+      color: #fde68a;
+      background: rgba(245, 158, 11, 0.14);
+      border-color: rgba(245, 158, 11, 0.35);
+    }
+
+    /* 底部主控按钮区 */
+    .controls-row {
+      margin-top: 12px;
+      display: flex;
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .btn-secondary {
+      flex: 1;
+      padding: 13px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      background: rgba(15, 23, 42, 0.9);
+      color: #e2e8f0;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-secondary:active {
+      transform: scale(0.98);
+    }
+
+    .btn-primary-capture {
+      flex: 1.65;
+      padding: 14px 18px;
+      border-radius: 14px;
+      border: none;
+      background: linear-gradient(135deg, #00f2fe 0%, #0284c7 100%);
+      color: #04101e;
+      font-size: 15.5px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 6px 22px rgba(0, 242, 254, 0.32);
+      transition: all 0.2s;
+    }
+
+    .btn-primary-capture:active {
+      transform: scale(0.97);
+      box-shadow: 0 3px 12px rgba(0, 242, 254, 0.25);
+    }
+
+    /* 识别结果弹出卡片 */
+    .result-card {
+      margin-top: 12px;
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(0, 242, 254, 0.38);
+      border-radius: var(--radius-lg);
+      padding: 14px 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+      display: none;
+      animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .result-card.show {
+      display: block;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .result-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .orientation-tag {
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 999px;
+    }
+
+    .orientation-tag.normal {
+      background: rgba(16, 185, 129, 0.18);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+
+    .orientation-tag.inverted {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.45);
+    }
+
+    /* 颜色序列胶囊展示 */
+    .sequence-strip {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 5px;
+      background: rgba(7, 11, 20, 0.65);
+      padding: 9px 10px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.14);
+    }
+
+    .seq-node {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #e2e8f0;
+      background: rgba(30, 41, 59, 0.9);
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .color-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+    }
+
+    .seq-arrow {
+      color: #64748b;
+      font-size: 11px;
+      font-weight: bold;
+    }
+
+    /* 业务翻译网格 */
+    .biz-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .biz-item {
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(56, 189, 248, 0.16);
+      border-radius: 9px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .biz-label {
+      font-size: 11px;
+      color: var(--text-sub);
+    }
+
+    .biz-val {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #38bdf8;
+    }
+
+    /* 配置页样式 */
+    .config-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+
+    .config-section-title {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .config-desc {
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-bottom: 14px;
+      line-height: 1.45;
+    }
+
+    .form-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      background: rgba(15, 23, 42, 0.72);
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      margin-bottom: 12px;
+    }
+
+    .form-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+
+    select.cyber-select {
+      background: #0f172a;
+      color: #f8fafc;
+      border: 1px solid rgba(56, 189, 248, 0.38);
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 12.5px;
+      font-weight: 600;
+      outline: none;
+    }
+
+    select.cyber-select:focus {
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 8px rgba(0, 242, 254, 0.25);
+    }
+
+    .slot-list {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .slot-item {
+      display: grid;
+      grid-template-columns: 58px 1fr 1fr;
+      gap: 8px;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.65);
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.14);
+    }
+
+    .slot-badge {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--neon-cyan);
+      background: rgba(0, 242, 254, 0.1);
+      border: 1px solid rgba(0, 242, 254, 0.28);
+      padding: 5px 6px;
+      border-radius: 7px;
+      text-align: center;
+    }
+
+    .slot-col-header {
+      display: grid;
+      grid-template-columns: 58px 1fr 1fr;
+      gap: 8px;
+      padding: 0 10px 6px;
+      font-size: 11.5px;
+      color: var(--text-sub);
+      font-weight: 600;
+    }
+
+    .config-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    /* 顶部轻提示 Toast */
+    .cyber-toast {
+      position: fixed;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--neon-cyan);
+      color: #fff;
+      padding: 9px 18px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 6px 24px rgba(0, 242, 254, 0.28);
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s ease;
+    }
+
+    .cyber-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- 顶部状态通知 -->
+    <div id="cyberToast" class="cyber-toast">配置已保存</div>
+
+    <!-- 顶部栏 -->
+    <header class="app-header">
+      <div class="brand-group">
+        <div class="brand-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00f2fe" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
+            <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
+            <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
+            <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
+            <line x1="7" y1="8" x2="17" y2="8"></line>
+            <line x1="7" y1="12" x2="17" y2="12"></line>
+            <line x1="7" y1="16" x2="17" y2="16"></line>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">移动端颜色条码识别系统</div>
+          <div class="brand-subtitle" id="schemeSummaryText">当前规则：7色标准方案</div>
+        </div>
+      </div>
+      <div class="status-badge">
+        <span id="statusDot" class="status-dot"></span>
+        <span id="statusText">待机就绪</span>
+      </div>
+    </header>
+
+    <!-- Tab 导航栏 -->
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="scanPage" id="tabScanBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+          <line x1="8" y1="12" x2="16" y2="12"></line>
+        </svg>
+        扫码识别页
+      </button>
+      <button class="tab-btn" data-tab="configPage" id="tabConfigBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        规则配置页
+      </button>
+    </nav>
+
+    <!-- ==================== 页面 1：扫码识别页 ==================== -->
+    <section id="scanPage" class="page-view active">
+      <!-- 视频与画布取景框 -->
+      <div class="viewfinder-card">
+        <video id="cameraVideo" playsinline autoplay muted></video>
+        <canvas id="captureCanvas"></canvas>
+
+        <!-- 待机背景说明 -->
+        <div id="cameraPlaceholder" class="camera-placeholder">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+          <div style="font-size: 13px; font-weight: 600; color: #cbd5e1;">点击下方“开启相机”或使用“模拟测试样本”</div>
+          <div style="font-size: 11.5px; margin-top: 4px;">请将纵向排列的颜色条码置于中央引导槽内</div>
+        </div>
+
+        <!-- 科技感四角扫码框 + 引导线 -->
+        <div class="scanner-hud">
+          <div class="hud-frame">
+            <span class="corner tl"></span>
+            <span class="corner tr"></span>
+            <span class="corner bl"></span>
+            <span class="corner br"></span>
+            <div id="scanLaser" class="scan-laser"></div>
+
+            <!-- 纵向对齐导轨 -->
+            <div class="barcode-guide-pillar" id="guidePillar">
+              <span class="guide-tick"></span>
+              <span class="guide-tick"></span>
+              <span class="guide-tick"></span>
+              <span class="guide-tick"></span>
+              <span class="guide-tick"></span>
+              <span class="guide-tick"></span>
+            </div>
+
+            <div class="hud-tip" id="hudSlotHint">目标识别：纵向 7 位颜色序列</div>
+          </div>
+        </div>
+
+        <!-- 防翻车自动重扫提示浮层 -->
+        <div id="rescanBanner" class="rescan-banner">
+          <span>扫描中，请保持稳定...</span>
+        </div>
+      </div>
+
+      <!-- 模拟样本测试栏（方便无实物条码/电脑答辩时一键验证正序、倒置、重扫容错） -->
+      <div class="demo-bar">
+        <span class="demo-label">免相机答辩演示：</span>
+        <div class="demo-actions">
+          <button class="chip-btn" id="btnSimNormal" type="button">模拟样本(正序)</button>
+          <button class="chip-btn" id="btnSimInverted" type="button">模拟样本(倒置)</button>
+          <button class="chip-btn warn" id="btnSimFail" type="button">模拟残缺(触发重扫)</button>
+        </div>
+      </div>
+
+      <!-- 主操作按钮 -->
+      <div class="controls-row">
+        <button class="btn-secondary" id="btnStartCamera" type="button">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+          <span id="cameraBtnText">开启相机</span>
+        </button>
+        <button class="btn-primary-capture" id="btnCaptureRecognize" type="button">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+            <circle cx="12" cy="12" r="10"></circle>
+            <circle cx="12" cy="12" r="4"></circle>
+          </svg>
+          拍照识别
+        </button>
+      </div>
+
+      <!-- 识别成功结果卡片 -->
+      <div id="resultCard" class="result-card">
+        <div class="result-header">
+          <div class="result-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00f2fe" stroke-width="2.5">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            条码解码结果
+          </div>
+          <span id="orientationTag" class="orientation-tag normal">状态：正常</span>
+        </div>
+
+        <!-- 颜色序列可视化 -->
+        <div id="sequenceStrip" class="sequence-strip"></div>
+
+        <!-- 业务规则翻译列表 -->
+        <div id="bizGrid" class="biz-grid"></div>
+      </div>
+    </section>
+
+    <!-- ==================== 页面 2：规则配置页 ==================== -->
+    <section id="configPage" class="page-view">
+      <div class="config-card">
+        <div class="config-section-title">
+          <span>颜色条码位数与编码规则</span>
+          <span style="font-size: 11.5px; color: var(--neon-cyan); font-weight: 600;">LocalStorage 持久化</span>
+        </div>
+        <p class="config-desc">
+          預設採用「7色标准方案」。您可自由調整色位數量（4~8位）、每位代表的業務含義及固定基準色（用於自動識別正反倒置並糾偏）。
+        </p>
+
+        <!-- 颜色位数量选择 -->
+        <div class="form-row">
+          <span class="form-label">颜色位数量（4 ~ 8 位）</span>
+          <select id="slotCountSelect" class="cyber-select">
+            <option value="4">4 位颜色方案</option>
+            <option value="5">5 位颜色方案</option>
+            <option value="6">6 位颜色方案</option>
+            <option value="7" selected>7 位（7色标准方案）</option>
+            <option value="8">8 位扩展方案</option>
+          </select>
+        </div>
+
+        <!-- 列表表头 -->
+        <div class="slot-col-header">
+          <span>色位</span>
+          <span>业务含义映射</span>
+          <span>固定基准色(判正反)</span>
+        </div>
+
+        <!-- 动态生成的色位配置行 -->
+        <div id="slotConfigContainer" class="slot-list"></div>
+
+        <!-- 保存与重置按钮 -->
+        <div class="config-actions">
+          <button id="btnResetDefault" class="btn-secondary" type="button">恢复默认7色方案</button>
+          <button id="btnSaveConfig" class="btn-primary-capture" type="button">保存规则配置</button>
+        </div>
+      </div>
+
+      <!-- 算法说明卡片 -->
+      <div class="config-card" style="margin-bottom: 0;">
+        <div class="config-section-title">CV 视觉识别管线参数说明</div>
+        <p class="config-desc" style="margin-bottom: 0;">
+          • <strong>色彩空间</strong>：RGB 实时转换 HSV，自动剔除高明度低饱和度白色背景像素。<br/>
+          • <strong>支持8种目标色</strong>：红、橙、黄、绿、蓝、品红、紫、黑。<br/>
+          • <strong>连通域与几何约束</strong>：网格化 8 邻域 BFS 连通域聚类，过滤孤立噪点，按 X 轴对齐度与纵向紧密排列提取连续色块序列。
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    /**
+     * ============================================================================
+     * 1. 全局常量与默认 7 色标准方案配置
+     * ============================================================================
+     */
+    const STORAGE_KEY = 'COLOR_BARCODE_CONFIG_V1';
+
+    // 业务含义候选项
+    const MEANING_OPTIONS = [
+      '楼层',
+      '区域',
+      '书架号',
+      '层数',
+      '分类号',
+      '校验/基准位'
+    ];
+
+    // 固定基准色候选项
+    const REF_COLOR_OPTIONS = [
+      { value: 'NONE', label: '无/动态色位' },
+      { value: '黑', label: '黑 (基准色)' },
+      { value: '红', label: '红' },
+      { value: '橙', label: '橙' },
+      { value: '黄', label: '黄' },
+      { value: '绿', label: '绿' },
+      { value: '蓝', label: '蓝' },
+      { value: '品红', label: '品红' },
+      { value: '紫', label: '紫' }
+    ];
+
+    // 8种目标识别颜色的展示色值与标准绘制RGB
+    const COLOR_PALETTE = {
+      '红':   { hex: '#ef4444', rgb: [228, 38, 48] },
+      '橙':   { hex: '#f97316', rgb: [245, 125, 20] },
+      '黄':   { hex: '#eab308', rgb: [238, 210, 18] },
+      '绿':   { hex: '#22c55e', rgb: [30, 185, 75] },
+      '蓝':   { hex: '#3b82f6', rgb: [30, 110, 235] },
+      '品红': { hex: '#ec4899', rgb: [225, 45, 155] },
+      '紫':   { hex: '#8b5cf6', rgb: [125, 50, 210] },
+      '黑':   { hex: '#1e293b', rgb: [24, 28, 36] }
+    };
+
+    // 获取默认7色标准方案（完全匹配示例：楼层:红; 区域:蓝黄; 书架号:橙绿; 层数:紫; 末位基准色:黑）
+    function getDefaultConfig() {
+      return {
+        slotCount: 7,
+        slots: [
+          { meaning: '楼层', refColor: 'NONE' },
+          { meaning: '区域', refColor: 'NONE' },
+          { meaning: '区域', refColor: 'NONE' },
+          { meaning: '书架号', refColor: 'NONE' },
+          { meaning: '书架号', refColor: 'NONE' },
+          { meaning: '层数', refColor: 'NONE' },
+          { meaning: '校验/基准位', refColor: '黑' }
+        ]
+      };
+    }
+
+    // 当前生效的配置对象
+    let appConfig = loadConfigFromStorage();
+    // 摄像头媒体流引用
+    let mediaStream = null;
+    // 防翻车自动重扫定时器
+    let rescanTimer = null;
+
+    /**
+     * ============================================================================
+     * 2. DOM 节点引用与初始化
+     * ============================================================================
+     */
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const pageViews = document.querySelectorAll('.page-view');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const schemeSummaryText = document.getElementById('schemeSummaryText');
+    const hudSlotHint = document.getElementById('hudSlotHint');
+    const scanLaser = document.getElementById('scanLaser');
+
+    const cameraVideo = document.getElementById('cameraVideo');
+    const captureCanvas = document.getElementById('captureCanvas');
+    const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+    const rescanBanner = document.getElementById('rescanBanner');
+
+    const btnStartCamera = document.getElementById('btnStartCamera');
+    const cameraBtnText = document.getElementById('cameraBtnText');
+    const btnCaptureRecognize = document.getElementById('btnCaptureRecognize');
+    const btnSimNormal = document.getElementById('btnSimNormal');
+    const btnSimInverted = document.getElementById('btnSimInverted');
+    const btnSimFail = document.getElementById('btnSimFail');
+
+    const resultCard = document.getElementById('resultCard');
+    const orientationTag = document.getElementById('orientationTag');
+    const sequenceStrip = document.getElementById('sequenceStrip');
+    const bizGrid = document.getElementById('bizGrid');
+
+    const slotCountSelect = document.getElementById('slotCountSelect');
+    const slotConfigContainer = document.getElementById('slotConfigContainer');
+    const btnSaveConfig = document.getElementById('btnSaveConfig');
+    const btnResetDefault = document.getElementById('btnResetDefault');
+    const cyberToast = document.getElementById('cyberToast');
+
+    // 显示顶部科技感轻提示（替代原生 alert）
+    function showToast(msg) {
+      cyberToast.textContent = msg;
+      cyberToast.classList.add('show');
+      clearTimeout(showToast._tid);
+      showToast._tid = setTimeout(() => {
+        cyberToast.classList.remove('show');
+      }, 2200);
+    }
+
+    // 更新顶部状态指示灯
+    function updateStatus(mode, text) {
+      statusDot.className = 'status-dot';
+      if (mode === 'active') statusDot.classList.add('active');
+      if (mode === 'success') statusDot.classList.add('success');
+      if (mode === 'warn') statusDot.classList.add('warn');
+      statusText.textContent = text;
+    }
+
+    /**
+     * ============================================================================
+     * 3. 配置页 LocalStorage 读取、渲染与保存逻辑
+     * ============================================================================
+     */
+    function loadConfigFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return getDefaultConfig();
+        const parsed = JSON.parse(raw);
+        if (
+          parsed &&
+          typeof parsed.slotCount === 'number' &&
+          parsed.slotCount >= 4 &&
+          parsed.slotCount <= 8 &&
+          Array.isArray(parsed.slots) &&
+          parsed.slots.length === parsed.slotCount
+        ) {
+          return parsed;
+        }
+      } catch (e) {
+        console.warn('读取 localStorage 配置失败，已回退默认配置:', e);
+      }
+      return getDefaultConfig();
+    }
+
+    function saveConfigToStorage(cfg) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+      } catch (e) {
+        console.warn('写入 localStorage 失败:', e);
+      }
+    }
+
+    // 根据位数量动态生成配置行
+    function renderConfigForm(count, slotsData) {
+      slotCountSelect.value = String(count);
+      slotConfigContainer.innerHTML = '';
+
+      for (let i = 0; i < count; i++) {
+        // 如果切到更多位数，给新增位智能分配默认含义与尾部黑色基准
+        let defaultMeaning = '分类号';
+        if (i === 0) defaultMeaning = '楼层';
+        else if (i === 1 || i === 2) defaultMeaning = '区域';
+        else if (i === 3 || i === 4) defaultMeaning = '书架号';
+        else if (i === count - 1) defaultMeaning = '校验/基准位';
+
+        const slotObj = slotsData[i] || {
+          meaning: defaultMeaning,
+          refColor: i === count - 1 ? '黑' : 'NONE'
+        };
+
+        const row = document.createElement('div');
+        row.className = 'slot-item';
+
+        const badge = document.createElement('div');
+        badge.className = 'slot-badge';
+        badge.textContent = `第 ${i + 1} 位`;
+
+        // 含义下拉框
+        const meaningSelect = document.createElement('select');
+        meaningSelect.className = 'cyber-select slot-meaning-select';
+        MEANING_OPTIONS.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m;
+          opt.textContent = m;
+          if (slotObj.meaning === m) opt.selected = true;
+          meaningSelect.appendChild(opt);
+        });
+
+        // 固定基准色下拉框
+        const refSelect = document.createElement('select');
+        refSelect.className = 'cyber-select slot-ref-select';
+        REF_COLOR_OPTIONS.forEach(rc => {
+          const opt = document.createElement('option');
+          opt.value = rc.value;
+          opt.textContent = rc.label;
+          if (slotObj.refColor === rc.value) opt.selected = true;
+          refSelect.appendChild(opt);
+        });
+
+        row.appendChild(badge);
+        row.appendChild(meaningSelect);
+        row.appendChild(refSelect);
+        slotConfigContainer.appendChild(row);
+      }
+    }
+
+    // 同步头部与扫码框中的方案提示文案
+    function syncHeaderSummary() {
+      const n = appConfig.slotCount;
+      const lastSlot = appConfig.slots[n - 1];
+      const refDesc = lastSlot && lastSlot.refColor !== 'NONE' ? `末位基准:${lastSlot.refColor}` : '自定义映射';
+      schemeSummaryText.textContent = `当前规则：${n}位颜色方案（${refDesc}）`;
+      hudSlotHint.textContent = `目标识别：纵向 ${n} 位颜色序列`;
+    }
+
+    // 监听位数下拉框变更
+    slotCountSelect.addEventListener('change', () => {
+      const newCount = parseInt(slotCountSelect.value, 10);
+      // 保留当前已选内容，调整长度并确保最后一位默认带上黑色基准
+      const currentRows = readCurrentFormSlots();
+      const updatedSlots = [];
+      for (let i = 0; i < newCount; i++) {
+        if (i === newCount - 1) {
+          updatedSlots.push({
+            meaning: '校验/基准位',
+            refColor: '黑'
+          });
+        } else if (currentRows[i] && currentRows[i].meaning !== '校验/基准位') {
+          updatedSlots.push(currentRows[i]);
+        } else {
+          const fallback = getDefaultConfig().slots[i] || { meaning: '分类号', refColor: 'NONE' };
+          updatedSlots.push({ meaning: fallback.meaning, refColor: 'NONE' });
+        }
+      }
+      renderConfigForm(newCount, updatedSlots);
+    });
+
+    function readCurrentFormSlots() {
+      const meaningEls = slotConfigContainer.querySelectorAll('.slot-meaning-select');
+      const refEls = slotConfigContainer.querySelectorAll('.slot-ref-select');
+      const list = [];
+      for (let i = 0; i < meaningEls.length; i++) {
+        list.push({
+          meaning: meaningEls[i].value,
+          refColor: refEls[i].value
+        });
+      }
+      return list;
+    }
+
+    // 点击“保存规则配置”
+    btnSaveConfig.addEventListener('click', () => {
+      const count = parseInt(slotCountSelect.value, 10);
+      const slots = readCurrentFormSlots();
+      appConfig = { slotCount: count, slots };
+      saveConfigToStorage(appConfig);
+      syncHeaderSummary();
+      showToast(`已保存 ${count} 位颜色条码规则`);
+    });
+
+    // 点击“恢复默认7色方案”
+    btnResetDefault.addEventListener('click', () => {
+      appConfig = getDefaultConfig();
+      saveConfigToStorage(appConfig);
+      renderConfigForm(appConfig.slotCount, appConfig.slots);
+      syncHeaderSummary();
+      showToast('已恢复默认 7 色标准方案');
+    });
+
+    /**
+     * ============================================================================
+     * 4. Tab 导航切换逻辑
+     * ============================================================================
+     */
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.getAttribute('data-tab');
+        tabBtns.forEach(b => b.classList.remove('active'));
+        pageViews.forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(targetId).classList.add('active');
+      });
+    });
+
+    /**
+     * ============================================================================
+     * 5. 相机开启与拍照控制逻辑
+     * ============================================================================
+     */
+    async function startCamera() {
+      clearTimeout(rescanTimer);
+      rescanBanner.classList.remove('show');
+
+      try {
+        // 先释放已有视频流
+        stopCameraStreamOnly();
+
+        let stream = null;
+        try {
+          // 优先请求手机后置摄像头 environment
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 720 },
+              height: { ideal: 960 }
+            },
+            audio: false
+          });
+        } catch (innerErr) {
+          // 桌面端或不支持 facingMode 时降级
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        }
+
+        mediaStream = stream;
+        cameraVideo.srcObject = stream;
+        await cameraVideo.play();
+
+        cameraVideo.style.display = 'block';
+        captureCanvas.style.display = 'none';
+        cameraPlaceholder.style.display = 'none';
+        scanLaser.classList.remove('paused');
+        cameraBtnText.textContent = '重开相机';
+        updateStatus('active', '相机取景中');
+      } catch (err) {
+        console.warn('摄像头开启失败:', err);
+        updateStatus('warn', '无相机权限/设备');
+        showToast('无法调用后置相机，可使用下方“模拟样本”测试');
+      }
+    }
+
+    function stopCameraStreamOnly() {
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+        mediaStream = null;
+      }
+    }
+
+    btnStartCamera.addEventListener('click', () => {
+      startCamera();
+    });
+
+    // 点击“拍照识别”按钮
+    btnCaptureRecognize.addEventListener('click', () => {
+      clearTimeout(rescanTimer);
+      rescanBanner.classList.remove('show');
+
+      // 如果当前视频流正在播放，将当前视频帧绘制到 Canvas 并停止视频流
+      if (mediaStream && cameraVideo.readyState >= 2) {
+        const vw = cameraVideo.videoWidth || 480;
+        const vh = cameraVideo.videoHeight || 640;
+        captureCanvas.width = vw;
+        captureCanvas.height = vh;
+        const ctx = captureCanvas.getContext('2d');
+        ctx.drawImage(cameraVideo, 0, 0, vw, vh);
+
+        // 停止视频流，释放硬件轨道，切换显示 Canvas
+        stopCameraStreamOnly();
+        cameraVideo.style.display = 'none';
+        captureCanvas.style.display = 'block';
+        scanLaser.classList.add('paused');
+
+        executeRecognitionOnCanvas(true);
+      } else if (captureCanvas.style.display === 'block' && captureCanvas.width > 0) {
+        // 如果画布上已有图像，直接执行识别
+        executeRecognitionOnCanvas(false);
+      } else {
+        // 如果用户既没开相机也没点模拟样本就直接点“拍照识别”，自动生成一帧标准正序样本进行识别演示
+        generateSyntheticBarcodeFrame('normal');
+        executeRecognitionOnCanvas(false);
+      }
+    });
+
+    /**
+     * ============================================================================
+     * 6. 计算机视觉算法：RGB 转 HSV + 8色分类 + 网格连通域聚类 + 纵向序列提取
+     * ============================================================================
+     */
+
+    // RGB [0..255] 转 HSV (H: 0..360, S: 0..1, V: 0..1)
+    function rgbToHsv(r, g, b) {
+      const rn = r / 255;
+      const gn = g / 255;
+      const bn = b / 255;
+      const max = Math.max(rn, gn, bn);
+      const min = Math.min(rn, gn, bn);
+      const d = max - min;
+
+      let h = 0;
+      const s = max === 0 ? 0 : d / max;
+      const v = max;
+
+      if (d !== 0) {
+        switch (max) {
+          case rn:
+            h = ((gn - bn) / d + (gn < bn ? 6 : 0)) * 60;
+            break;
+          case gn:
+            h = ((bn - rn) / d + 2) * 60;
+            break;
+          case bn:
+            h = ((rn - gn) / d + 4) * 60;
+            break;
+        }
+      }
+      return { h, s, v };
+    }
+
+    /**
+     * 像素颜色分类器：
+     * - 严格过滤白色/浅灰背景（不找白色）
+     * - 识别 8 种目标颜色：红、橙、黄、绿、蓝、品红、紫、黑
+     */
+    function classifyPixelColor(r, g, b) {
+      const { h, s, v } = rgbToHsv(r, g, b);
+
+      // 1. 过滤白色与浅灰背景（高明度、低饱和度直接忽略）
+      if (v > 0.72 && s < 0.25) return null;
+      // 过滤中等明度的中性灰背景墙面/纸张阴影
+      if (v >= 0.26 && s < 0.22) return null;
+
+      // 2. 识别黑色（低明度 V < 0.26）
+      if (v < 0.26) {
+        return '黑';
+      }
+
+      // 3. 彩色像素要求饱和度 S >= 0.25 且明度适中
+      if (s < 0.25) return null;
+
+      // 按色相 H (0 ~ 360°) 划分 7 种彩色：红、橙、黄、绿、蓝、紫、品红
+      if (h >= 342 || h < 14) {
+        return '红';
+      } else if (h >= 14 && h < 40) {
+        return '橙';
+      } else if (h >= 40 && h < 74) {
+        return '黄';
+      } else if (h >= 74 && h < 168) {
+        return '绿';
+      } else if (h >= 168 && h < 252) {
+        return '蓝';
+      } else if (h >= 252 && h < 292) {
+        return '紫';
+      } else if (h >= 292 && h < 342) {
+        return '品红';
+      }
+
+      return null;
+    }
+
+    /**
+     * 核心图像识别管线：
+     * 1. 提取 Canvas 图像数据 getImageData
+     * 2. 降采样为网格并进行 8 邻域连通域聚类 (BFS)，过滤面积过小的噪点
+     * 3. 寻找 X 坐标相近、纵向紧密排列的 N 个颜色块序列
+     */
+    function recognizeColorSequence(canvas, targetCount) {
+      const ctx = canvas.getContext('2d');
+      const width = canvas.width;
+      const height = canvas.height;
+      const imgData = ctx.getImageData(0, 0, width, height).data;
+
+      // 网格步长（兼顾手机端实时性能与精度）
+      const cellSize = Math.max(3, Math.floor(Math.min(width, height) / 120));
+      const gridW = Math.floor(width / cellSize);
+      const gridH = Math.floor(height / cellSize);
+
+      // 构建颜色标签网格
+      const colorGrid = new Array(gridW * gridH).fill(null);
+
+      for (let gy = 0; gy < gridH; gy++) {
+        const py = gy * cellSize + (cellSize >> 1);
+        for (let gx = 0; gx < gridW; gx++) {
+          const px = gx * cellSize + (cellSize >> 1);
+          const idx = (py * width + px) * 4;
+          const r = imgData[idx];
+          const g = imgData[idx + 1];
+          const b = imgData[idx + 2];
+          colorGrid[gy * gridW + gx] = classifyPixelColor(r, g, b);
+        }
+      }
+
+      // BFS 连通域标记，过滤孤立噪点
+      const visited = new Uint8Array(gridW * gridH);
+      const rawBlobs = [];
+      // 最小连通网格面积阈值（过滤孤立噪点）
+      const minCellCount = Math.max(8, Math.floor((gridW * gridH) * 0.0009));
+
+      const dx8 = [-1, 0, 1, -1, 1, -1, 0, 1];
+      const dy8 = [-1, -1, -1, 0, 0, 1, 1, 1];
+
+      for (let gy = 0; gy < gridH; gy++) {
+        for (let gx = 0; gx < gridW; gx++) {
+          const startIdx = gy * gridW + gx;
+          const color = colorGrid[startIdx];
+          if (!color || visited[startIdx]) continue;
+
+          // 启动 BFS
+          const queue = [startIdx];
+          visited[startIdx] = 1;
+
+          let count = 0;
+          let sumX = 0;
+          let sumY = 0;
+          let minX = gx, maxX = gx;
+          let minY = gy, maxY = gy;
+
+          while (queue.length > 0) {
+            const curr = queue.pop();
+            const cy = Math.floor(curr / gridW);
+            const cx = curr % gridW;
+
+            count++;
+            sumX += cx;
+            sumY += cy;
+            if (cx < minX) minX = cx;
+            if (cx > maxX) maxX = cx;
+            if (cy < minY) minY = cy;
+            if (cy > maxY) maxY = cy;
+
+            for (let d = 0; d < 8; d++) {
+              const nx = cx + dx8[d];
+              const ny = cy + dy8[d];
+              if (nx >= 0 && nx < gridW && ny >= 0 && ny < gridH) {
+                const nIdx = ny * gridW + nx;
+                if (!visited[nIdx] && colorGrid[nIdx] === color) {
+                  visited[nIdx] = 1;
+                  queue.push(nIdx);
+                }
+              }
+            }
+          }
+
+          // 过滤过小的孤立噪点与过于细长的边框伪影
+          const bw = (maxX - minX + 1);
+          const bh = (maxY - minY + 1);
+          const aspect = bw / bh;
+          if (count >= minCellCount && aspect > 0.2 && aspect < 6.5) {
+            rawBlobs.push({
+              color,
+              area: count,
+              cx: (sumX / count) * cellSize,
+              cy: (sumY / count) * cellSize,
+              x: minX * cellSize,
+              y: minY * cellSize,
+              w: bw * cellSize,
+              h: bh * cellSize
+            });
+          }
+        }
+      }
+
+      if (rawBlobs.length < targetCount) {
+        return null;
+      }
+
+      // 寻找纵向排列紧密、X 坐标相近的一组色块（长度等于 targetCount）
+      // 按每个候选色块作为基准 X 轴列，筛选出 X 坐标相近的色块群
+      const xTolerance = width * 0.14;
+      let bestSequence = null;
+      let bestScore = Infinity;
+
+      for (let i = 0; i < rawBlobs.length; i++) {
+        const anchorX = rawBlobs[i].cx;
+        // 找出在同一纵向柱状区域内的所有色块，并按 Y 坐标从上到下排序
+        const columnBlobs = rawBlobs
+          .filter(b => Math.abs(b.cx - anchorX) <= xTolerance)
+          .sort((a, b) => a.cy - b.cy);
+
+        // 合并因光照高光偶尔分裂的同色紧邻碎片
+        const mergedCol = [];
+        for (const b of columnBlobs) {
+          const prev = mergedCol[mergedCol.length - 1];
+          if (
+            prev &&
+            prev.color === b.color &&
+            Math.abs(b.cy - prev.cy) < Math.max(prev.h, b.h) * 0.75
+          ) {
+            const nx = Math.min(prev.x, b.x);
+            const ny = Math.min(prev.y, b.y);
+            const nr = Math.max(prev.x + prev.w, b.x + b.w);
+            const nb = Math.max(prev.y + prev.h, b.y + b.h);
+            prev.x = nx;
+            prev.y = ny;
+            prev.w = nr - nx;
+            prev.h = nb - ny;
+            prev.cx = nx + prev.w / 2;
+            prev.cy = ny + prev.h / 2;
+            prev.area += b.area;
+          } else {
+            mergedCol.push({ ...b });
+          }
+        }
+
+        if (mergedCol.length < targetCount) continue;
+
+        // 滑动窗口寻找最均匀、纵向最紧密的连续 targetCount 个色块
+        for (let start = 0; start <= mergedCol.length - targetCount; start++) {
+          const slice = mergedCol.slice(start, start + targetCount);
+          const gaps = [];
+          let validChain = true;
+
+          for (let k = 0; k < slice.length - 1; k++) {
+            const dy = slice[k + 1].cy - slice[k].cy;
+            const avgH = (slice[k].h + slice[k + 1].h) / 2;
+            // 相邻色块纵向间距不能过大（保证紧密排列）
+            if (dy <= avgH * 0.35 || dy > avgH * 3.4) {
+              validChain = false;
+              break;
+            }
+            gaps.push(dy);
+          }
+
+          if (!validChain) continue;
+
+          // 计算间距方差与 X 偏移惩罚，挑出最整齐的一列
+          const meanGap = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+          const gapVariance = gaps.reduce((acc, g) => acc + Math.pow(g - meanGap, 2), 0) / gaps.length;
+          const xDeviation = slice.reduce((acc, b) => acc + Math.abs(b.cx - anchorX), 0) / slice.length;
+          const score = Math.sqrt(gapVariance) + xDeviation * 1.5;
+
+          if (score < bestScore) {
+            bestScore = score;
+            bestSequence = slice;
+          }
+        }
+      }
+
+      return bestSequence;
+    }
+
+    /**
+     * ============================================================================
+     * 7. 结果反馈、红框标注、正反倒置纠偏与防翻车自动重扫
+     * ============================================================================
+     */
+    function executeRecognitionOnCanvas(shouldAutoResumeCameraOnFail) {
+      const targetCount = appConfig.slotCount;
+      const matchedBlobs = recognizeColorSequence(captureCanvas, targetCount);
+
+      // 情况 A：识别失败（防答辩翻车容错逻辑）
+      if (!matchedBlobs || matchedBlobs.length !== targetCount) {
+        resultCard.classList.remove('show');
+        rescanBanner.classList.add('show');
+        updateStatus('warn', '扫描中，请保持稳定...');
+
+        clearTimeout(rescanTimer);
+        rescanTimer = setTimeout(() => {
+          rescanBanner.classList.remove('show');
+          if (shouldAutoResumeCameraOnFail) {
+            startCamera();
+          } else {
+            updateStatus('active', '待命重扫就绪');
+          }
+        }, 500);
+        return;
+      }
+
+      // 情况 B：识别成功！在 Canvas 对应色块位置画醒目红框与序号标签
+      const ctx = captureCanvas.getContext('2d');
+      matchedBlobs.forEach((blob, idx) => {
+        ctx.save();
+        ctx.strokeStyle = '#ff2e63';
+        ctx.lineWidth = Math.max(2.5, captureCanvas.width * 0.007);
+        ctx.shadowColor = 'rgba(255, 46, 99, 0.85)';
+        ctx.shadowBlur = 8;
+
+        const pad = 4;
+        ctx.strokeRect(blob.x - pad, blob.y - pad, blob.w + pad * 2, blob.h + pad * 2);
+
+        // 绘制右侧色块序号与颜色名称角标
+        const tagText = `#${idx + 1} ${blob.color}`;
+        ctx.font = `bold ${Math.max(12, Math.floor(captureCanvas.width * 0.032))}px sans-serif`;
+        const textWidth = ctx.measureText(tagText).width;
+        const boxX = Math.min(captureCanvas.width - textWidth - 18, blob.x + blob.w + 10);
+        const boxY = blob.cy - 11;
+
+        ctx.fillStyle = 'rgba(255, 46, 99, 0.92)';
+        ctx.beginPath();
+        ctx.roundRect(boxX, boxY, textWidth + 12, 22, 5);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowBlur = 0;
+        ctx.fillText(tagText, boxX + 6, boxY + 15);
+        ctx.restore();
+      });
+
+      // 提取原始颜色序列
+      let finalColors = matchedBlobs.map(b => b.color);
+      let isInverted = false;
+
+      // 判断正反倒置：
+      // 检查配置的最后一位固定基准色（默认为“黑”），如果第一位是该基准色（或黑色）且最后一位不是，则自动判定为“倒置”并反转数组
+      const lastSlotConfig = appConfig.slots[targetCount - 1];
+      const tailRefColor = (lastSlotConfig && lastSlotConfig.refColor !== 'NONE')
+        ? lastSlotConfig.refColor
+        : '黑';
+
+      const firstColor = finalColors[0];
+      const lastColor = finalColors[finalColors.length - 1];
+
+      if (firstColor === tailRefColor && lastColor !== tailRefColor) {
+        isInverted = true;
+        finalColors = [...finalColors].reverse();
+      }
+
+      // 渲染底部识别结果卡片
+      renderRecognitionResultCard(finalColors, isInverted);
+      updateStatus('success', isInverted ? '识别成功(已纠偏)' : '识别成功');
+    }
+
+    // 渲染识别结果卡片与业务语言翻译
+    function renderRecognitionResultCard(colors, isInverted) {
+      // 1. 顶部正反状态标签
+      if (isInverted) {
+        orientationTag.className = 'orientation-tag inverted';
+        orientationTag.textContent = '状态：倒置（已自动纠偏）';
+      } else {
+        orientationTag.className = 'orientation-tag normal';
+        orientationTag.textContent = '状态：正常';
+      }
+
+      // 2. 渲染颜色序列（如：红 - 蓝 - 黄 - 橙 - 绿 - 紫 - 黑）
+      sequenceStrip.innerHTML = '';
+      colors.forEach((cName, idx) => {
+        const node = document.createElement('span');
+        node.className = 'seq-node';
+
+        const dot = document.createElement('span');
+        dot.className = 'color-dot';
+        dot.style.background = COLOR_PALETTE[cName] ? COLOR_PALETTE[cName].hex : '#ccc';
+
+        const txt = document.createElement('span');
+        txt.textContent = cName;
+
+        node.appendChild(dot);
+        node.appendChild(txt);
+        sequenceStrip.appendChild(node);
+
+        if (idx < colors.length - 1) {
+          const arrow = document.createElement('span');
+          arrow.className = 'seq-arrow';
+          arrow.textContent = '-';
+          sequenceStrip.appendChild(arrow);
+        }
+      });
+
+      // 3. 根据配置页规则翻译成业务语言（自动聚合相同含义的位，如：楼层：红；区域：蓝黄；书架号：橙绿；层数：紫）
+      const aggregatedMap = new Map();
+      let refCheckPass = true;
+
+      for (let i = 0; i < colors.length; i++) {
+        const slotRule = appConfig.slots[i] || { meaning: `位置${i + 1}`, refColor: 'NONE' };
+        const colorVal = colors[i];
+
+        // 校验固定基准色是否匹配
+        if (slotRule.refColor !== 'NONE' && slotRule.refColor !== colorVal) {
+          refCheckPass = false;
+        }
+
+        // 校验/基准位单独汇总到状态中，或展示在网格内
+        if (!aggregatedMap.has(slotRule.meaning)) {
+          aggregatedMap.set(slotRule.meaning, []);
+        }
+        aggregatedMap.get(slotRule.meaning).push(colorVal);
+      }
+
+      bizGrid.innerHTML = '';
+      aggregatedMap.forEach((colorArr, meaningKey) => {
+        const item = document.createElement('div');
+        item.className = 'biz-item';
+        item.innerHTML = `
+          <span class="biz-label">${meaningKey}</span>
+          <span class="biz-val">${colorArr.join('')}</span>
+        `;
+        bizGrid.appendChild(item);
+      });
+
+      // 附加状态汇总项
+      const statusItem = document.createElement('div');
+      statusItem.className = 'biz-item';
+      const statusDesc = isInverted
+        ? '倒置 (已反转纠偏)'
+        : (refCheckPass ? '正常' : '正常 (基准色偏移)');
+      statusItem.innerHTML = `
+        <span class="biz-label">条码状态</span>
+        <span class="biz-val" style="color: ${isInverted ? '#fbbf24' : '#34d399'};">${statusDesc}</span>
+      `;
+      bizGrid.appendChild(statusItem);
+
+      resultCard.classList.add('show');
+    }
+
+    /**
+     * ============================================================================
+     * 8. 免相机合成真实感测试样本生成器（支持正序、倒置、残缺重扫测试）
+     * ============================================================================
+     */
+    function generateSyntheticBarcodeFrame(mode) {
+      stopCameraStreamOnly();
+      cameraVideo.style.display = 'none';
+      cameraPlaceholder.style.display = 'none';
+      captureCanvas.style.display = 'block';
+      scanLaser.classList.add('paused');
+
+      const width = 480;
+      const height = 640;
+      captureCanvas.width = width;
+      captureCanvas.height = height;
+      const ctx = captureCanvas.getContext('2d');
+
+      // 1. 绘制微灰白书架/墙面背景（测试算法过滤白色背景能力）
+      const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+      bgGrad.addColorStop(0, '#f1f5f9');
+      bgGrad.addColorStop(1, '#e2e8f0');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      // 2. 绘制白色贴纸衬底
+      const cardW = 128;
+      const cardH = 470;
+      const cardX = (width - cardW) / 2;
+      const cardY = (height - cardH) / 2;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(cardX, cardY, cardW, cardH);
+
+      // 3. 添加少量随机孤立彩色噪点（验证连通域算法自动过滤孤立噪点能力）
+      const noiseColors = ['#ef4444', '#3b82f6', '#22c55e', '#eab308', '#8b5cf6'];
+      for (let i = 0; i < 36; i++) {
+        ctx.fillStyle = noiseColors[i % noiseColors.length];
+        const nx = Math.random() * width;
+        const ny = Math.random() * height;
+        // 避开中心条码主体区域
+        if (Math.abs(nx - width / 2) > 55) {
+          ctx.fillRect(nx, ny, 4, 4);
+        }
+      }
+
+      // 4. 构建当前配置位数的标准颜色序列
+      // 默认7色示例序列：红 - 蓝 - 黄 - 橙 - 绿 - 紫 - 黑
+      const defaultDemoPool = ['红', '蓝', '黄', '橙', '绿', '紫', '品红'];
+      const count = appConfig.slotCount;
+      let sequence = [];
+
+      for (let i = 0; i < count; i++) {
+        const slotCfg = appConfig.slots[i];
+        if (slotCfg && slotCfg.refColor !== 'NONE') {
+          sequence.push(slotCfg.refColor);
+        } else if (i === count - 1) {
+          sequence.push('黑');
+        } else {
+          sequence.push(defaultDemoPool[i % defaultDemoPool.length]);
+        }
+      }
+
+      if (mode === 'inverted') {
+        sequence.reverse();
+      } else if (mode === 'fail') {
+        // 故意只画 2 个色块，模拟遮挡或未对准以触发 0.5 秒防翻车重扫
+        sequence = sequence.slice(0, 2);
+      }
+
+      // 5. 纵向绘制紧密排列的颜色块
+      const totalPaddingY = 46;
+      const usableH = cardH - totalPaddingY * 2;
+      const stepY = usableH / count;
+      const blockW = 74;
+      const blockH = Math.min(44, stepY * 0.74);
+      const blockX = (width - blockW) / 2;
+
+      sequence.forEach((colorName, idx) => {
+        const palette = COLOR_PALETTE[colorName] || COLOR_PALETTE['红'];
+        const [r, g, b] = palette.rgb;
+        const blockY = cardY + totalPaddingY + idx * stepY + (stepY - blockH) / 2;
+
+        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+        ctx.fillRect(blockX, blockY, blockW, blockH);
+      });
+    }
+
+    // 绑定3个演示快捷按钮
+    btnSimNormal.addEventListener('click', () => {
+      generateSyntheticBarcodeFrame('normal');
+      executeRecognitionOnCanvas(false);
+    });
+
+    btnSimInverted.addEventListener('click', () => {
+      generateSyntheticBarcodeFrame('inverted');
+      executeRecognitionOnCanvas(false);
+    });
+
+    btnSimFail.addEventListener('click', () => {
+      generateSyntheticBarcodeFrame('fail');
+      executeRecognitionOnCanvas(false);
+    });
+
+    /**
+     * ============================================================================
+     * 9. 页面启动初始化
+     * ============================================================================
+     */
+    function initApp() {
+      renderConfigForm(appConfig.slotCount, appConfig.slots);
+      syncHeaderSummary();
+      updateStatus('active', '待机就绪');
+    }
+
+    initApp();
+  </script>
+</body>
+</html>
