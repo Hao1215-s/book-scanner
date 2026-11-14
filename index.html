@@ -947,7 +947,7 @@
       <div class="demo-bar">
         <span class="demo-label">免相机答辩演示：</span>
         <div class="demo-actions">
-          <button class="chip-btn" id="btnSimNormal" type="button">模拟样本(正向)</button>
+          <button class="chip-btn" id="btnSimNormal" type="button">模拟样本(正向41)</button>
           <button class="chip-btn" id="btnSimInverted" type="button">模拟样本(倒置)</button>
           <button class="chip-btn warn" id="btnSimFail" type="button">模拟残缺(触发重扫)</button>
         </div>
@@ -967,7 +967,7 @@
             <circle cx="12" cy="12" r="10"></circle>
             <circle cx="12" cy="12" r="4"></circle>
           </svg>
-          拍照识别
+          <span id="captureBtnText">拍照识别</span>
         </button>
       </div>
 
@@ -1236,6 +1236,8 @@
     let appConfig = loadConfigFromStorage();
     let editingConfig = JSON.parse(JSON.stringify(appConfig));
     let mediaStream = null;
+    let isCameraActive = false;
+    let hasCameraPermission = false;
     let rescanTimer = null;
 
     /**
@@ -1259,6 +1261,7 @@
     const btnStartCamera = document.getElementById('btnStartCamera');
     const cameraBtnText = document.getElementById('cameraBtnText');
     const btnCaptureRecognize = document.getElementById('btnCaptureRecognize');
+    const captureBtnText = document.getElementById('captureBtnText');
     const btnSimNormal = document.getElementById('btnSimNormal');
     const btnSimInverted = document.getElementById('btnSimInverted');
     const btnSimFail = document.getElementById('btnSimFail');
@@ -1468,21 +1471,45 @@
         pageViews.forEach(p => p.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById(targetId).classList.add('active');
+
+        // 切回扫码页或离开扫码页时，严格清理旧媒体流，防止占用或画面卡死
+        if (targetId !== 'scanPage') {
+          stopCameraStream();
+        } else if (hasCameraPermission) {
+          startCamera();
+        }
       });
     });
 
     /**
      * ============================================================================
-     * 5. 相机调用与拍照控制逻辑
+     * 5. 相机调用与拍照控制逻辑（严格管理媒体流释放与最新帧绘制）
      * ============================================================================
      */
+    function stopCameraStream() {
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+        mediaStream = null;
+      }
+      if (cameraVideo.srcObject) {
+        cameraVideo.srcObject = null;
+      }
+      isCameraActive = false;
+    }
+
     async function startCamera() {
       clearTimeout(rescanTimer);
       rescanBanner.classList.remove('show');
 
-      try {
-        stopCameraStreamOnly();
+      // 每次开启相机前务必先关闭并释放上一次的媒体流
+      stopCameraStream();
 
+      // 清空旧静态图片缓存，防止旧图残留
+      const ctx = captureCanvas.getContext('2d');
+      ctx.clearRect(0, 0, captureCanvas.width, captureCanvas.height);
+      captureCanvas._cleanImageData = null;
+
+      try {
         let stream = null;
         try {
           stream = await navigator.mediaDevices.getUserMedia({
@@ -1498,6 +1525,8 @@
         }
 
         mediaStream = stream;
+        isCameraActive = true;
+        hasCameraPermission = true;
         cameraVideo.srcObject = stream;
         await cameraVideo.play();
 
@@ -1505,7 +1534,8 @@
         captureCanvas.style.display = 'none';
         cameraPlaceholder.style.display = 'none';
         scanLaser.classList.remove('paused');
-        cameraBtnText.textContent = '重开相机';
+        cameraBtnText.textContent = '刷新相机';
+        captureBtnText.textContent = '拍照识别';
         updateStatus('active', '相机取景中');
       } catch (err) {
         console.warn('摄像头开启失败:', err);
@@ -1514,11 +1544,45 @@
       }
     }
 
-    function stopCameraStreamOnly() {
-      if (mediaStream) {
-        mediaStream.getTracks().forEach(track => track.stop());
-        mediaStream = null;
+    function takePhoto() {
+      clearTimeout(rescanTimer);
+      rescanBanner.classList.remove('show');
+
+      // 若当前相机未处于实时取景状态，点击主按钮则重新打开摄像头实时画面
+      if (!isCameraActive || !mediaStream) {
+        startCamera();
+        return;
       }
+
+      if (cameraVideo.readyState < 2) {
+        showToast('相机画面加载中，请稍候...');
+        return;
+      }
+
+      const vw = cameraVideo.videoWidth || 480;
+      const vh = cameraVideo.videoHeight || 640;
+      captureCanvas.width = vw;
+      captureCanvas.height = vh;
+
+      const ctx = captureCanvas.getContext('2d');
+      // 1. 先彻底清空画布，再将最新捕获的实时视频帧绘制到 Canvas 上
+      ctx.clearRect(0, 0, vw, vh);
+      ctx.drawImage(cameraVideo, 0, 0, vw, vh);
+
+      // 2. 更新干净底图为刚刚拍下的最新帧（供后续配置项修改时重绘红框）
+      captureCanvas._cleanImageData = ctx.getImageData(0, 0, vw, vh);
+
+      // 3. 立即停止并关闭媒体流，释放摄像头硬件
+      stopCameraStream();
+
+      // 4. 切换视图展示拍下的静态帧并进入识别
+      cameraVideo.style.display = 'none';
+      cameraPlaceholder.style.display = 'none';
+      captureCanvas.style.display = 'block';
+      scanLaser.classList.add('paused');
+      captureBtnText.textContent = '重新扫描';
+
+      executeRecognitionOnCanvas(true);
     }
 
     btnStartCamera.addEventListener('click', () => {
@@ -1526,28 +1590,14 @@
     });
 
     btnCaptureRecognize.addEventListener('click', () => {
-      clearTimeout(rescanTimer);
-      rescanBanner.classList.remove('show');
-
-      if (mediaStream && cameraVideo.readyState >= 2) {
-        const vw = cameraVideo.videoWidth || 480;
-        const vh = cameraVideo.videoHeight || 640;
-        captureCanvas.width = vw;
-        captureCanvas.height = vh;
-        const ctx = captureCanvas.getContext('2d');
-        ctx.drawImage(cameraVideo, 0, 0, vw, vh);
-
-        stopCameraStreamOnly();
-        cameraVideo.style.display = 'none';
-        captureCanvas.style.display = 'block';
-        scanLaser.classList.add('paused');
-
-        executeRecognitionOnCanvas(true);
-      } else if (captureCanvas.style.display === 'block' && captureCanvas.width > 0) {
-        executeRecognitionOnCanvas(false);
+      if (isCameraActive && mediaStream) {
+        takePhoto();
+      } else if (hasCameraPermission) {
+        // 识别完毕后再次点击主按钮，立即重新打开摄像头看到实时画面
+        startCamera();
       } else {
-        generateSyntheticBarcodeFrame('normal');
-        executeRecognitionOnCanvas(false);
+        // 若未授权过相机，尝试开启相机
+        startCamera();
       }
     });
 
@@ -1767,19 +1817,44 @@
 
     /**
      * ============================================================================
-     * 7. 查字典解析规则（楼层/区域/书架号/层数/正反校验）与卡片渲染
+     * 7. 查字典与七进制转十进制解析规则（楼层/区域/书架号/层数/正反校验）
      * ============================================================================
      */
+    /**
+     * 计算某个业务字段的值：
+     * - 若只有 1 位 (single)：直接返回映射数字 A
+     * - 若有 2 位 (double)：按七进制转十进制计算：
+     *   a = A - 1, b = B - 1
+     *   结果 = a * 7^1 + b * 7^0
+     * - 若超过 2 位：按各位 (val - 1) 依次进行标准七进制转十进制累加
+     */
+    function computeFieldValue(mappedNumbers) {
+      if (!mappedNumbers || mappedNumbers.length === 0) {
+        return null;
+      }
+      if (mappedNumbers.length === 1) {
+        return Number(mappedNumbers[0]);
+      }
+      // 双位或多位组合：每一位减 1 转换为合法七进制位，再按权展开为十进制
+      const len = mappedNumbers.length;
+      let decimalValue = 0;
+      for (let i = 0; i < len; i++) {
+        const digitBase7 = Number(mappedNumbers[i]) - 1;
+        const power = len - 1 - i;
+        decimalValue += digitBase7 * Math.pow(7, power);
+      }
+      return decimalValue;
+    }
+
     function executeRecognitionOnCanvas(shouldAutoResumeCameraOnFail) {
       const targetCount = appConfig.bitRules.length;
+      const ctx = captureCanvas.getContext('2d');
 
-      // 如果画布上曾画过红框，先保存或使用干净底图（对模拟样本或相机帧）
+      // 恢复当前帧未画红框前的干净底图
       if (captureCanvas._cleanImageData) {
-        captureCanvas.getContext('2d').putImageData(captureCanvas._cleanImageData, 0, 0);
+        ctx.putImageData(captureCanvas._cleanImageData, 0, 0);
       } else {
-        captureCanvas._cleanImageData = captureCanvas
-          .getContext('2d')
-          .getImageData(0, 0, captureCanvas.width, captureCanvas.height);
+        captureCanvas._cleanImageData = ctx.getImageData(0, 0, captureCanvas.width, captureCanvas.height);
       }
 
       const matchedBlobs = recognizeColorSequence(captureCanvas, targetCount);
@@ -1811,25 +1886,25 @@
       const expectedFixedColor = (fixedRule && fixedRule.fixedColor) ? fixedRule.fixedColor : '黑';
 
       let finalColors = [...rawColors];
-      let statusLabel = '正常（正向）';
+      let statusLabel = '正常';
       let statusMode = 'normal';
 
       // 正反倒置判定：
       // 如果检测到基准色（如“黑”）出现在第 1 位且最后一位不是基准色，说明书本倒置，自动反转序列
+      // 状态文案严格只显示“倒置”两个字，不带任何括号
       if (rawColors[0] === expectedFixedColor && rawColors[rawColors.length - 1] !== expectedFixedColor) {
         finalColors.reverse();
-        statusLabel = '倒置（已纠正）';
+        statusLabel = '倒置';
         statusMode = 'inverted';
       } else if (rawColors[rawColors.length - 1] === expectedFixedColor) {
-        statusLabel = '正常（正向）';
+        statusLabel = '正常';
         statusMode = 'normal';
       } else {
-        statusLabel = `校验异常（末位非${expectedFixedColor}）`;
+        statusLabel = '校验异常';
         statusMode = 'error';
       }
 
       // 在 Canvas 对应色块位置绘制红框与数字映射角标
-      const ctx = captureCanvas.getContext('2d');
       matchedBlobs.forEach((blob, visualIdx) => {
         ctx.save();
         ctx.strokeStyle = '#ff2e63';
@@ -1868,18 +1943,17 @@
     }
 
     function renderParsedResultCard(rawColors, finalColors, statusLabel, statusMode) {
-      // 1. 顶部状态胶囊
+      // 1. 顶部状态胶囊（倒置时严格只显示“倒置”二字）
       orientationTag.className = `orientation-tag ${statusMode === 'normal' ? 'normal' : 'inverted'}`;
       orientationTag.textContent = statusLabel;
 
-      // 如果是倒置纠正，附注原始物理扫描方向序列
       if (statusMode === 'inverted') {
         rawScanOrderHint.textContent = `原图物理序: ${rawColors.join('-')}`;
       } else {
         rawScanOrderHint.textContent = '正向物理序列';
       }
 
-      // 2. 渲染识别序列（如：红 - 蓝 - 黄 - 橙 - 绿 - 紫 - 黑）
+      // 2. 渲染识别序列
       sequenceStrip.innerHTML = '';
       finalColors.forEach((cName, idx) => {
         const node = document.createElement('span');
@@ -1905,7 +1979,7 @@
         }
       });
 
-      // 3. 按 bitRules 与 colorMapping 查表拼合业务字段
+      // 3. 按 bitRules 与 colorMapping 查表收集各位映射数字
       const buckets = {
         '楼层': [],
         '区域': [],
@@ -1917,21 +1991,25 @@
         const colorName = finalColors[idx];
         if (!colorName || rule.meaning === '校验基准位' || rule.type === 'fixed') return;
 
-        // 查 colorMapping 字典得到数字
-        const digit = appConfig.colorMapping[colorName] !== undefined
-          ? String(appConfig.colorMapping[colorName])
-          : colorName;
-
-        if (!buckets[rule.meaning]) {
-          buckets[rule.meaning] = [];
+        const mappedVal = appConfig.colorMapping[colorName];
+        if (mappedVal !== undefined) {
+          if (!buckets[rule.meaning]) {
+            buckets[rule.meaning] = [];
+          }
+          buckets[rule.meaning].push(Number(mappedVal));
         }
-        buckets[rule.meaning].push(digit);
       });
 
-      const floorText = buckets['楼层'].length > 0 ? `${buckets['楼层'].join('')} 楼` : '未配置该位';
-      const areaText = buckets['区域'].length > 0 ? `${buckets['区域'].join('')}` : '未配置该位';
-      const shelfText = buckets['书架号'].length > 0 ? `${buckets['书架号'].join('')}` : '未配置该位';
-      const layerText = buckets['层数'].length > 0 ? `${buckets['层数'].join('')} 层` : '未配置该位';
+      // 4. 调用 computeFieldValue 执行单位直取或双位七进制转十进制计算
+      const floorVal = computeFieldValue(buckets['楼层']);
+      const areaVal = computeFieldValue(buckets['区域']);
+      const shelfVal = computeFieldValue(buckets['书架号']);
+      const layerVal = computeFieldValue(buckets['层数']);
+
+      const floorText = floorVal !== null ? `${floorVal} 楼` : '未配置该位';
+      const areaText = areaVal !== null ? `${areaVal}` : '未配置该位';
+      const shelfText = shelfVal !== null ? `${shelfVal}` : '未配置该位';
+      const layerText = layerVal !== null ? `${layerVal} 层` : '未配置该位';
 
       let statusClass = 'status-normal';
       if (statusMode === 'inverted') statusClass = 'status-inverted';
@@ -1965,21 +2043,25 @@
 
     /**
      * ============================================================================
-     * 8. 免相机真实像素测试样本生成器（严格生成 红-蓝-黄-橙-绿-紫-黑 标准序列）
+     * 8. 免相机真实像素测试样本生成器
      * ============================================================================
      */
     function generateSyntheticBarcodeFrame(mode) {
-      stopCameraStreamOnly();
+      stopCameraStream();
       cameraVideo.style.display = 'none';
       cameraPlaceholder.style.display = 'none';
       captureCanvas.style.display = 'block';
       scanLaser.classList.add('paused');
+      captureBtnText.textContent = '开启相机';
 
       const width = 480;
       const height = 640;
       captureCanvas.width = width;
       captureCanvas.height = height;
       const ctx = captureCanvas.getContext('2d');
+
+      // 先清空旧画布内容
+      ctx.clearRect(0, 0, width, height);
 
       // 1. 绘制微灰白书架/墙面背景（测试算法过滤白色背景能力）
       const bgGrad = ctx.createLinearGradient(0, 0, width, height);
@@ -2008,8 +2090,11 @@
       }
 
       // 4. 构建当前配置位数的标准演示序列
-      // 当为 7 位时，严格对应示例序列：红(1) - 蓝(4) - 黄(3) - 橙(2) - 绿(5) - 紫(7) - 黑(基准)
-      const standardDemoColors = ['红', '蓝', '黄', '橙', '绿', '紫', '品红'];
+      // 当为 7 位时，使用序列：红(1) - 蓝(4) - 黄(3) - 品红(6) - 紫(7) - 紫(7) - 黑(基准)
+      // 验证七进制转十进制：
+      // 区域 = 蓝(4)、黄(3) -> (4-1)*7 + (3-1) = 23
+      // 书架号 = 品红(6)、紫(7) -> (6-1)*7 + (7-1) = 41
+      const standardDemoColors = ['红', '蓝', '黄', '品红', '紫', '紫', '绿'];
       const count = appConfig.bitRules.length;
       let sequence = [];
 
@@ -2045,7 +2130,7 @@
         ctx.fillRect(blockX, blockY, blockW, blockH);
       });
 
-      // 保存干净底图以便重绘红框
+      // 保存当前最新生成帧作为干净底图
       captureCanvas._cleanImageData = ctx.getImageData(0, 0, width, height);
     }
 
